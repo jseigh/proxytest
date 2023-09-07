@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+
+declare -a events
+events=(\
+# "-e context-switches" \
+ "-e cycle_activity.stalls_mem_any" \
+ "-e cycle_activity.stalls_total" \
+# "-e inst_decoded.decoders" \
+ "-e frontend_retired.latency_ge_1" \
+ "-e uops_executed.stall_cycles" \
+ "-e partial_rat_stalls.scoreboard" \
+# "-e sched_switch" \
+ "-e l1d_pend_miss.pending" \
+# "-e cycle_activity.cycles_l3_miss" \
+# "-e cycle_activity.stalls_l3_miss" \
+ "-e cpu-cycles" \
+ "-e ref-cycles" \
+)
+
+
+perf stat ${events[*]} "$@"
