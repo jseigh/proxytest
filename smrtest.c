@@ -41,6 +41,8 @@ static int testreader_smr_nest(void  *x);
 static int testreader_smr_nest2(void  *x);
 static int testreader_unsafe(void *x);
 static int testreader_rcu(void *x);
+static int testreader_urcu(void *x);
+static int testreader_urcu2(void *x);
 static int testreader_arc(void *x);
 static int testreader_empty(void *x);
 static int testwriter(void *x);
@@ -66,6 +68,8 @@ static testcase_t test_suite[] = {
     {"arc",        &testreader_arc,      &testwriter_arc, "atomic refcounted proxy"},
 
     {"rcu",        &testreader_rcu,      &testwriter, "rcu (simulated)"},
+    {"urcu",       &testreader_urcu,     &testwriter_rwlock, "urcu (simulated)"},
+    {"urcu2",      &testreader_urcu2,     &testwriter_rwlock, "urcu (simulated) alternate with rmw add"},
     {"empty",      &testreader_empty,    &testwriter, "empty loop"},
     {"rwlock",     &testreader_rwlock,   &testwriter_rwlock, "rwlock - reader preference"},
     {"rwlock_wp",  &testreader_rwlock,   &testwriter_rwlock_wp, "rwlock - writer preference"},
@@ -300,8 +304,12 @@ static int testwriter(void *x)
         test_data_t *pdata2 = newtestdata(env);
 
         long long t0 = gettimex(CLOCK_MONOTONIC);
-        if (env->config.async)
-            smrproxy_retire_async(proxy, pdata, &freedata);
+        if (env->config.async) {
+            while (smrproxy_retire_async(proxy, pdata, &freedata) == 0) {
+                sched_yield();
+            }
+
+        }
         else
             smrproxy_retire_sync(proxy, pdata, &freedata);
         long long t1 = gettimex(CLOCK_MONOTONIC);
@@ -522,6 +530,25 @@ static int testreader_unsafe(void * x) {
 static int testreader_rcu(void * x) {
     test_prolog
     dependent_load(ppdata);
+    test_epilog
+}
+
+static int testreader_urcu(void *x)
+{
+    test_prolog
+    atomic_store_explicit(&ref->epoch, ref->epoch + 1, memory_order_relaxed);
+    atomic_thread_fence(memory_order_acq_rel);
+    dependent_load(ppdata);
+    atomic_store_explicit(&ref->data, ref->epoch, memory_order_release);
+    test_epilog
+}
+
+static int testreader_urcu2(void *x)
+{
+    test_prolog
+    atomic_fetch_add_explicit(&ref->epoch, 1, memory_order_acq_rel);
+    dependent_load(ppdata);
+    atomic_store_explicit(&ref->data, ref->epoch, memory_order_release);
     test_epilog
 }
 
