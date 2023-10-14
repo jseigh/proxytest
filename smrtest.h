@@ -41,7 +41,6 @@ typedef struct {
 } testcase_t;
 
 typedef struct {
-    bool async;                 // use asynchronous retirement
     unsigned int nreaders;      // number of reader threads
     unsigned long count;        // reader loop count
     unsigned int mod;           // reader sleep every mod interations
@@ -53,7 +52,7 @@ typedef struct {
 
     bool verbose;
 } test_config_t;
-static const test_config_t test_config_init = {false, 10, 10000, 0, 0, 50, NULL, false};
+static const test_config_t test_config_init = {10, 10000, 0, 0, 50, NULL, false};
 
 typedef struct {
     long long arccount;

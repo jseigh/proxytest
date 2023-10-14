@@ -56,15 +56,12 @@ bool getconfig(testcase_t *tests, test_config_t *config, int argc, char **argv) 
         int this_option_optind = optind ? optind : 1;
         int option_index = 0;
 
-        int c = getopt_long(argc, argv, "ac:n:m:r:w:t:vh", long_options, &option_index);
+        int c = getopt_long(argc, argv, "c:n:m:r:w:t:vh", long_options, &option_index);
         if (c == -1)
             break;
 
         switch (c)
         {
-            case 'a':
-                config->async = true;
-                break;
             case 'c':
                 config->count = atol(optarg);
                 break;
@@ -112,7 +109,6 @@ bool getconfig(testcase_t *tests, test_config_t *config, int argc, char **argv) 
     if (help)
     {
         fprintf(stderr, "Options:\n");
-        fprintf(stderr, "  -a --async use asynchdronous retirement (default false)\n");
         fprintf(stderr, "  -c --count <arg>  reader access count (default %u)\n", test_config_init.count);
         fprintf(stderr, "  -n --nreaders <arg>  number of reader threads (default %u)\n", test_config_init.nreaders);
         fprintf(stderr, "  -m --mod <arg>  reader sleep on every n'th access (default %u)\n", test_config_init.mod);
@@ -131,7 +127,6 @@ bool getconfig(testcase_t *tests, test_config_t *config, int argc, char **argv) 
     if (verbose)
     {
         fprintf(stderr, "Test configuration:\n");
-        fprintf(stderr, "  aync=%s\n", config->async ? "true" : "false");
         fprintf(stderr, "  count=%u\n", config->count);
         fprintf(stderr, "  nreaders=%u\n", config->nreaders);
         fprintf(stderr, "  mod=%u\n", config->mod);

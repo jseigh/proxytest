@@ -45,6 +45,7 @@ static int testreader_urcu(void *x);
 static int testreader_urcu2(void *x);
 static int testreader_arc(void *x);
 static int testreader_empty(void *x);
+static int testwriter_nop(void *x);
 static int testwriter(void *x);
 static int testreader_rwlock(void *x);
 static int testwriter_rwlock(void *x);
@@ -67,10 +68,10 @@ static testcase_t test_suite[] = {
     {"arc_stats",  &testreader_arc_stats, &testwriter_arc, "atomic refcounted proxy w/ stats"},
     {"arc",        &testreader_arc,      &testwriter_arc, "atomic refcounted proxy"},
 
-    {"rcu",        &testreader_rcu,      &testwriter, "rcu (simulated)"},
-    {"urcu",       &testreader_urcu,     &testwriter_rwlock, "urcu (simulated)"},
-    {"urcu2",      &testreader_urcu2,     &testwriter_rwlock, "urcu (simulated) alternate with rmw add"},
-    {"empty",      &testreader_empty,    &testwriter, "empty loop"},
+    {"rcu",        &testreader_rcu,      &testwriter_nop, "rcu (simulated)"},
+    {"urcu",       &testreader_urcu,     &testwriter_nop, "urcu (simulated)"},
+    {"urcu2",      &testreader_urcu2,    &testwriter_nop, "urcu (simulated) alternate with rmw add"},
+    {"empty",      &testreader_empty,    &testwriter_nop, "empty loop"},
     {"rwlock",     &testreader_rwlock,   &testwriter_rwlock, "rwlock - reader preference"},
     {"rwlock_wp",  &testreader_rwlock,   &testwriter_rwlock_wp, "rwlock - writer preference"},
     {NULL, NULL, NULL, NULL},
@@ -279,6 +280,19 @@ static void merge_stats(test_env_t *env, test_stats_t *stats, long count, long l
     atomic_fetch_add(&env->stats.read_time, time);
 }
 
+/**
+ * testwriter for simulated readers
+*/
+static int testwriter_nop(void *x)
+{
+    test_env_t *env = x;
+    while(env->context.active)
+    {
+        sleep2(env, env->config.wsleep_ms);
+    }
+    return 0;
+}
+
 static int testwriter(void *x)
 {
     test_env_t *env = x;
@@ -304,14 +318,7 @@ static int testwriter(void *x)
         test_data_t *pdata2 = newtestdata(env);
 
         long long t0 = gettimex(CLOCK_MONOTONIC);
-        if (env->config.async) {
-            while (smrproxy_retire_async(proxy, pdata, &freedata) == 0) {
-                sched_yield();
-            }
-
-        }
-        else
-            smrproxy_retire_sync(proxy, pdata, &freedata);
+        smrproxy_retire(proxy, pdata, &freedata);
         long long t1 = gettimex(CLOCK_MONOTONIC);
         pdata = pdata2;
 
@@ -537,7 +544,7 @@ static int testreader_urcu(void *x)
 {
     test_prolog
     atomic_store_explicit(&ref->epoch, ref->epoch + 1, memory_order_relaxed);
-    atomic_thread_fence(memory_order_acq_rel);
+    atomic_thread_fence(memory_order_seq_cst);
     dependent_load(ppdata);
     atomic_store_explicit(&ref->data, ref->epoch, memory_order_release);
     test_epilog
@@ -611,7 +618,6 @@ int main(int argc, char **argv) {
 
     smrproxy_config_t *config = smrproxy_default_config();
 
-    config->poll = env.config.async;
     config->polltime = env.config.wsleep_ms;
     env.context.proxy = smrproxy_create(config);
     env.context.aproxy = arcproxy_create(200);
